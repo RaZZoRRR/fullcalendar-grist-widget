@@ -75,7 +75,7 @@ let departments = [];
 
 /* -------------------- LOAD DICTIONARIES -------------------- */
 
-grist.onOptions(async () => {
+async function loadDictionaries() {
   const empTable = await grist.docApi.fetchTable("Employees");
   const depTable = await grist.docApi.fetchTable("Departments");
 
@@ -83,7 +83,10 @@ grist.onOptions(async () => {
   departments = depTable.department || depTable.name || [];
 
   fillDropdowns();
-});
+}
+
+grist.ready();
+loadDictionaries();
 
 /* -------------------- FILL DROPDOWNS -------------------- */
 
