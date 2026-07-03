@@ -236,7 +236,9 @@ async function loadDayEntries(dateStr) {
     date: table.date[i]
   }));
 
-  const filtered = rows.filter(r => r.date === dateStr);
+  const filtered = rows.filter(r =>
+  r.date && r.date.slice(0, 10) === dateStr
+);
 
   const container = document.getElementById("dayEntries");
 
