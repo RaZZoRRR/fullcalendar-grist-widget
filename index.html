@@ -86,7 +86,7 @@ let selectedDate = null;
 
 let employees = [];
 let departments = [];
-let shifts = [];
+let allRecords = [];
 let currentFilter = null;
 
 /* -------------------- INIT -------------------- */
@@ -94,14 +94,13 @@ let currentFilter = null;
 init();
 
 async function init() {
-  await loadEmployeesAndDepartments();
-  await loadShifts();
+  await loadData();
   setupUI();
 }
 
 /* -------------------- LOAD -------------------- */
 
-async function loadEmployeesAndDepartments() {
+async function loadData() {
   const empTable = await grist.docApi.fetchTable("Employees");
   const depTable = await grist.docApi.fetchTable("Departments");
 
@@ -109,25 +108,11 @@ async function loadEmployeesAndDepartments() {
   departments = depTable.department || depTable.name || [];
 }
 
-async function loadShifts() {
-  const table = await grist.docApi.fetchTable("Shifts_TEST");
-
-  shifts = table.id.map((_, i) => ({
-    id: table.id[i],
-    employee: table.employee[i],
-    department: table.department[i],
-    date: table.date[i]
-  }));
-
-  refreshCalendar();
-}
-
 /* -------------------- UI -------------------- */
 
 function setupUI() {
   fillDropdowns();
   fillFilter();
-  initCalendar(toEvents(shifts));
 }
 
 /* -------------------- DROPDOWNS -------------------- */
@@ -146,16 +131,6 @@ function fillFilter() {
   f.innerHTML =
     `<option value="">All employees</option>` +
     employees.map(e => `<option value="${e}">${e}</option>`).join("");
-}
-
-/* -------------------- DATE HELP -------------------- */
-
-function sameDay(a, b) {
-  const d = new Date(a);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}` === b;
 }
 
 /* -------------------- CALENDAR -------------------- */
@@ -184,8 +159,6 @@ function initCalendar(events) {
           date: info.event.startStr
         }]
       ]);
-
-      await loadShifts();
     },
 
     dateClick: (info) => {
@@ -197,29 +170,26 @@ function initCalendar(events) {
   calendar.render();
 }
 
-function refreshCalendar() {
-  if (!calendar) return;
-
-  const filtered = currentFilter
-    ? shifts.filter(r => r.employee === currentFilter)
-    : shifts;
-
-  calendar.removeAllEvents();
-  calendar.addEventSource(toEvents(filtered));
-}
-
 /* -------------------- FILTER -------------------- */
 
 function applyFilter() {
   const value = document.getElementById("filterEmployee").value;
   currentFilter = value || null;
-  refreshCalendar();
+
+  const filtered = currentFilter
+    ? allRecords.filter(r => r.employee === currentFilter)
+    : allRecords;
+
+  calendar.removeAllEvents();
+  calendar.addEventSource(toEvents(filtered));
 }
 
 function resetFilter() {
   document.getElementById("filterEmployee").value = "";
   currentFilter = null;
-  refreshCalendar();
+
+  calendar.removeAllEvents();
+  calendar.addEventSource(toEvents(allRecords));
 }
 
 /* -------------------- MODAL -------------------- */
@@ -249,15 +219,24 @@ async function saveShift() {
     }]
   ]);
 
-  await loadShifts();
-  loadDayEntries(selectedDate);
   closeModal();
 }
 
-/* -------------------- DAY VIEW -------------------- */
+/* -------------------- DAY VIEW (FIXED) -------------------- */
+
+function sameDay(a, b) {
+  if (!a) return false;
+  const d = new Date(a);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}` === b;
+}
 
 function loadDayEntries(dateStr) {
-  const filtered = shifts.filter(r => sameDay(r.date, dateStr));
+  const filtered = allRecords.filter(r =>
+    sameDay(r.date, dateStr)
+  );
 
   const container = document.getElementById("dayEntries");
 
@@ -274,6 +253,24 @@ function loadDayEntries(dateStr) {
   `;
 }
 
+/* -------------------- SYNC -------------------- */
+
+grist.onRecords(records => {
+  allRecords = records;
+
+  const events = toEvents(records);
+
+  if (!calendar) {
+    initCalendar(events);
+  } else {
+    calendar.removeAllEvents();
+    calendar.addEventSource(
+      currentFilter
+        ? toEvents(records.filter(r => r.employee === currentFilter))
+        : events
+    );
+  }
+});
 </script>
 
 </body>
