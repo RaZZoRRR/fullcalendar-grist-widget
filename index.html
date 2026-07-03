@@ -89,6 +89,8 @@ let departments = [];
 let allRecords = [];
 let currentFilter = null;
 
+const EVENT_SOURCE_ID = "grist-shifts";
+
 /* -------------------- INIT -------------------- */
 
 init();
@@ -96,9 +98,10 @@ init();
 async function init() {
   await loadData();
   setupUI();
+  await reloadCalendar();
 }
 
-/* -------------------- LOAD -------------------- */
+/* -------------------- LOAD STATIC DATA -------------------- */
 
 async function loadData() {
   const empTable = await grist.docApi.fetchTable("Employees");
@@ -151,7 +154,13 @@ function initCalendar(events) {
     initialView: "dayGridMonth",
     editable: true,
     selectable: true,
-    events: events,
+
+    eventSources: [
+      {
+        id: EVENT_SOURCE_ID,
+        events: events
+      }
+    ],
 
     eventDrop: async (info) => {
       await grist.docApi.applyUserActions([
@@ -159,6 +168,8 @@ function initCalendar(events) {
           date: info.event.startStr
         }]
       ]);
+
+      await reloadCalendar();
     },
 
     dateClick: (info) => {
@@ -173,23 +184,14 @@ function initCalendar(events) {
 /* -------------------- FILTER -------------------- */
 
 function applyFilter() {
-  const value = document.getElementById("filterEmployee").value;
-  currentFilter = value || null;
-
-  const filtered = currentFilter
-    ? allRecords.filter(r => r.employee === currentFilter)
-    : allRecords;
-
-  calendar.removeAllEvents();
-  calendar.addEventSource(toEvents(filtered));
+  currentFilter = document.getElementById("filterEmployee").value || null;
+  reloadCalendar();
 }
 
 function resetFilter() {
   document.getElementById("filterEmployee").value = "";
   currentFilter = null;
-
-  calendar.removeAllEvents();
-  calendar.addEventSource(toEvents(allRecords));
+  reloadCalendar();
 }
 
 /* -------------------- MODAL -------------------- */
@@ -219,6 +221,7 @@ async function saveShift() {
     }]
   ]);
 
+  await reloadCalendar();
   closeModal();
 }
 
@@ -251,9 +254,9 @@ async function loadDayEntries(dateStr) {
   `;
 }
 
-/* -------------------- SYNC (FIXED) -------------------- */
+/* -------------------- SYNC ENGINE (FIXED) -------------------- */
 
-grist.onRecords(async () => {
+async function reloadCalendar() {
   const table = await grist.docApi.fetchTable("Shifts_TEST");
 
   const rows = table.id.map((_, i) => ({
@@ -265,18 +268,26 @@ grist.onRecords(async () => {
 
   allRecords = rows;
 
-  const events = toEvents(rows);
+  const source = calendar.getEventSourceById(EVENT_SOURCE_ID);
 
-  if (!calendar) {
-    initCalendar(events);
-  } else {
-    calendar.removeAllEvents();
-    calendar.addEventSource(
-      currentFilter
-        ? toEvents(rows.filter(r => r.employee === currentFilter))
-        : events
-    );
+  if (source) {
+    source.remove();
   }
+
+  calendar.addEventSource({
+    id: EVENT_SOURCE_ID,
+    events: toEvents(
+      currentFilter
+        ? rows.filter(r => r.employee === currentFilter)
+        : rows
+    )
+  });
+}
+
+/* -------------------- INIT SYNC -------------------- */
+
+grist.onRecords(() => {
+  reloadCalendar();
 });
 
 </script>
