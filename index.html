@@ -12,13 +12,12 @@
     body { margin: 0; font-family: sans-serif; }
 
     #calendar {
-  max-width: 100%;
-  margin: 10px;
-  position: relative;
-  z-index: 1;
-}
+      max-width: 100%;
+      margin: 10px;
+      position: relative;
+      z-index: 1;
+    }
 
-    /* simple modal */
     #modal {
       display: none;
       position: fixed;
@@ -34,7 +33,6 @@
       padding: 20px;
       border-radius: 8px;
       min-width: 260px;
-      z-index: 10000;
     }
 
     select, button {
@@ -42,27 +40,29 @@
       margin-top: 10px;
       padding: 6px;
     }
+
     .fc {
-  z-index: 1;
-}
+      z-index: 1;
+    }
   </style>
 </head>
 
 <body>
-  <div id="calendar"></div>
 
-  <!-- modal -->
-  <div id="modal">
-    <div id="modalContent">
-      <div id="selectedDate" style="margin-bottom:10px;"></div>
+<div id="calendar"></div>
 
-      <select id="employeeSelect"></select>
-      <select id="departmentSelect"></select>
+<!-- modal -->
+<div id="modal">
+  <div id="modalContent">
+    <div id="selectedDate" style="margin-bottom:10px;"></div>
 
-      <button onclick="saveShift()">Save</button>
-      <button onclick="closeModal()">Cancel</button>
-    </div>
+    <select id="employeeSelect"></select>
+    <select id="departmentSelect"></select>
+
+    <button onclick="saveShift()">Save</button>
+    <button onclick="closeModal()">Cancel</button>
   </div>
+</div>
 
 <script>
 grist.ready({ allowSelectBy: true });
@@ -76,29 +76,37 @@ let departments = [];
 /* -------------------- LOAD DICTIONARIES -------------------- */
 
 async function loadDictionaries() {
-  const empTable = await grist.docApi.fetchTable("Employees");
-  const depTable = await grist.docApi.fetchTable("Departments");
+  try {
+    const empTable = await grist.docApi.fetchTable("Employees");
+    const depTable = await grist.docApi.fetchTable("Departments");
 
-  employees = empTable.employee || empTable.name || [];
-  departments = depTable.department || depTable.name || [];
+    employees = empTable.employee || empTable.name || [];
+    departments = depTable.department || depTable.name || [];
 
-  fillDropdowns();
+    fillDropdowns();
+  } catch (e) {
+    console.error("Error loading dictionaries:", e);
+  }
 }
 
-grist.ready();
 loadDictionaries();
 
-/* -------------------- FILL DROPDOWNS -------------------- */
+/* -------------------- DROPDOWNS -------------------- */
 
 function fillDropdowns() {
   const empSel = document.getElementById("employeeSelect");
   const depSel = document.getElementById("departmentSelect");
 
-  empSel.innerHTML = employees.map(e => `<option value="${e}">${e}</option>`).join("");
-  depSel.innerHTML = departments.map(d => `<option value="${d}">${d}</option>`).join("");
+  empSel.innerHTML = employees
+    .map(e => `<option value="${e}">${e}</option>`)
+    .join("");
+
+  depSel.innerHTML = departments
+    .map(d => `<option value="${d}">${d}</option>`)
+    .join("");
 }
 
-/* -------------------- EVENTS -------------------- */
+/* -------------------- CALENDAR -------------------- */
 
 function toEvents(records) {
   return records.map(r => ({
@@ -152,6 +160,11 @@ async function saveShift() {
   const employee = document.getElementById("employeeSelect").value;
   const department = document.getElementById("departmentSelect").value;
 
+  if (!employee || !department || !selectedDate) {
+    console.error("Missing data", { employee, department, selectedDate });
+    return;
+  }
+
   await grist.docApi.applyUserActions([
     ["AddRecord", "Shifts_TEST", null, {
       employee,
@@ -163,7 +176,7 @@ async function saveShift() {
   closeModal();
 }
 
-/* -------------------- GRIST SYNC -------------------- */
+/* -------------------- SYNC -------------------- */
 
 grist.onRecords(records => {
   const events = toEvents(records);
