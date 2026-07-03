@@ -11,7 +11,12 @@
   <style>
     body { margin: 0; font-family: sans-serif; }
 
-    #calendar { max-width: 100%; margin: 10px; }
+    #calendar {
+  max-width: 100%;
+  margin: 10px;
+  position: relative;
+  z-index: 1;
+}
 
     /* simple modal */
     #modal {
@@ -21,6 +26,7 @@
       background: rgba(0,0,0,0.4);
       justify-content: center;
       align-items: center;
+      z-index: 9999;
     }
 
     #modalContent {
@@ -28,6 +34,7 @@
       padding: 20px;
       border-radius: 8px;
       min-width: 260px;
+      z-index: 10000;
     }
 
     select, button {
@@ -35,6 +42,9 @@
       margin-top: 10px;
       padding: 6px;
     }
+    .fc {
+  z-index: 1;
+}
   </style>
 </head>
 
