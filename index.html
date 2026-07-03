@@ -9,10 +9,7 @@
   <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
 
   <style>
-    body {
-      margin: 0;
-      font-family: sans-serif;
-    }
+    body { margin: 0; font-family: sans-serif; }
 
     #toolbar {
       display: flex;
@@ -239,9 +236,7 @@ async function loadDayEntries(dateStr) {
     date: table.date[i]
   }));
 
-  const filtered = rows.filter(r =>
-    r.date && r.date.slice(0, 10) === dateStr
-  );
+  const filtered = rows.filter(r => r.date === dateStr);
 
   const container = document.getElementById("dayEntries");
 
@@ -276,10 +271,6 @@ grist.onRecords(records => {
     );
   }
 });
-</script>
-
-</body>
-</html>
 </script>
 
 </body>
