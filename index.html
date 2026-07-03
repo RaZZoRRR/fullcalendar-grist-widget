@@ -120,7 +120,7 @@ function initCalendar(events) {
 
     eventDrop: async (info) => {
       await grist.docApi.applyUserActions([
-        ["UpdateRecord", "Shifts", Number(info.event.id), {
+        ["UpdateRecord", "Shifts_TEST", Number(info.event.id), {
           date: info.event.startStr
         }]
       ]);
@@ -153,7 +153,7 @@ async function saveShift() {
   const department = document.getElementById("departmentSelect").value;
 
   await grist.docApi.applyUserActions([
-    ["AddRecord", "Shifts", null, {
+    ["AddRecord", "Shifts_TEST", null, {
       employee,
       department,
       date: selectedDate
