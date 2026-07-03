@@ -9,7 +9,10 @@
   <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
 
   <style>
-    body { margin: 0; font-family: sans-serif; }
+    body {
+      margin: 0;
+      font-family: sans-serif;
+    }
 
     #toolbar {
       display: flex;
@@ -56,6 +59,7 @@
 
 <body>
 
+<!-- FILTER -->
 <div id="toolbar">
   <label>Employee:</label>
   <select id="filterEmployee" onchange="applyFilter()"></select>
@@ -64,6 +68,7 @@
 
 <div id="calendar"></div>
 
+<!-- modal -->
 <div id="modal">
   <div id="modalContent">
     <div id="selectedDate"></div>
@@ -234,7 +239,9 @@ async function loadDayEntries(dateStr) {
     date: table.date[i]
   }));
 
-  const filtered = rows.filter(r => r.date === dateStr);
+  const filtered = rows.filter(r =>
+    r.date && r.date.slice(0, 10) === dateStr
+  );
 
   const container = document.getElementById("dayEntries");
 
@@ -251,21 +258,12 @@ async function loadDayEntries(dateStr) {
   `;
 }
 
-/* -------------------- SYNC (FIXED) -------------------- */
+/* -------------------- SYNC -------------------- */
 
-grist.onRecords(async () => {
-  const table = await grist.docApi.fetchTable("Shifts_TEST");
+grist.onRecords(records => {
+  allRecords = records;
 
-  const rows = table.id.map((_, i) => ({
-    id: table.id[i],
-    employee: table.employee[i],
-    department: table.department[i],
-    date: table.date[i]
-  }));
-
-  allRecords = rows;
-
-  const events = toEvents(rows);
+  const events = toEvents(records);
 
   if (!calendar) {
     initCalendar(events);
@@ -273,12 +271,11 @@ grist.onRecords(async () => {
     calendar.removeAllEvents();
     calendar.addEventSource(
       currentFilter
-        ? toEvents(rows.filter(r => r.employee === currentFilter))
+        ? toEvents(records.filter(r => r.employee === currentFilter))
         : events
     );
   }
 });
-
 </script>
 
 </body>
