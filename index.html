@@ -62,8 +62,12 @@
 <!-- FILTER -->
 <div id="toolbar">
   <label>Employee:</label>
-  <select id="filterEmployee" onchange="applyFilter()"></select>
-  <button onclick="resetFilter()">All</button>
+<select id="filterEmployee" onchange="applyFilter()"></select>
+
+<label>Department:</label>
+<select id="filterDepartment" onchange="applyFilter()"></select>
+
+<button onclick="resetFilter()">All</button>
 </div>
 
 <div id="calendar"></div>
@@ -93,6 +97,7 @@ let employees = [];
 let departments = [];
 let allRecords = [];
 let currentFilter = null;
+let currentDepartmentFilter = null;
 
 /* -------------------- INIT -------------------- */
 
@@ -118,6 +123,7 @@ async function loadData() {
 function setupUI() {
   fillDropdowns();
   fillFilter();
+  fillDepartmentFilter();
 }
 
 /* -------------------- DROPDOWNS -------------------- */
@@ -136,6 +142,14 @@ function fillFilter() {
   f.innerHTML =
     `<option value="">All employees</option>` +
     employees.map(e => `<option value="${e}">${e}</option>`).join("");
+}
+
+function fillDepartmentFilter() {
+  const f = document.getElementById("filterDepartment");
+
+  f.innerHTML =
+    `<option value="">All departments</option>` +
+    departments.map(d => `<option value="${d}">${d}</option>`).join("");
 }
 
 /* -------------------- CALENDAR -------------------- */
@@ -178,12 +192,19 @@ function initCalendar(events) {
 /* -------------------- FILTER -------------------- */
 
 function applyFilter() {
-  const value = document.getElementById("filterEmployee").value;
-  currentFilter = value || null;
+  currentFilter = document.getElementById("filterEmployee").value || null;
+  currentDepartmentFilter =
+    document.getElementById("filterDepartment").value || null;
 
-  const filtered = currentFilter
-    ? allRecords.filter(r => r.employee === currentFilter)
-    : allRecords;
+  let filtered = allRecords;
+
+  if (currentFilter) {
+    filtered = filtered.filter(r => r.employee === currentFilter);
+  }
+
+  if (currentDepartmentFilter) {
+    filtered = filtered.filter(r => r.department === currentDepartmentFilter);
+  }
 
   calendar.removeAllEvents();
   calendar.addEventSource(toEvents(filtered));
@@ -191,7 +212,10 @@ function applyFilter() {
 
 function resetFilter() {
   document.getElementById("filterEmployee").value = "";
+  document.getElementById("filterDepartment").value = "";
+
   currentFilter = null;
+  currentDepartmentFilter = null;
 
   calendar.removeAllEvents();
   calendar.addEventSource(toEvents(allRecords));
@@ -269,11 +293,17 @@ grist.onRecords(records => {
     initCalendar(events);
   } else {
     calendar.removeAllEvents();
-    calendar.addEventSource(
-      currentFilter
-        ? toEvents(records.filter(r => r.employee === currentFilter))
-        : events
-    );
+    let filtered = records;
+
+if (currentFilter) {
+  filtered = filtered.filter(r => r.employee === currentFilter);
+}
+
+if (currentDepartmentFilter) {
+  filtered = filtered.filter(r => r.department === currentDepartmentFilter);
+}
+
+calendar.addEventSource(toEvents(filtered));
   }
 });
 </script>
