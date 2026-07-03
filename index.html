@@ -23,6 +23,7 @@
       margin: 0 10px 10px 10px;
       position: relative;
       z-index: 1;
+      min-height: 500px;
     }
 
     #modal {
@@ -89,8 +90,6 @@ let departments = [];
 let allRecords = [];
 let currentFilter = null;
 
-const EVENT_SOURCE_ID = "grist-shifts";
-
 /* -------------------- INIT -------------------- */
 
 init();
@@ -136,22 +135,21 @@ function fillFilter() {
     employees.map(e => `<option value="${e}">${e}</option>`).join("");
 }
 
-/* -------------------- DATE NORMALIZER (FIX CORE) -------------------- */
+/* -------------------- DATE FIX -------------------- */
 
 function normalizeDate(date) {
   if (!date) return null;
 
-  if (typeof date === "number") {
-    return new Date(date).toISOString().split("T")[0];
+  if (date instanceof Date) {
+    return date.toISOString().slice(0, 10);
   }
 
-  if (date instanceof Date) {
-    return date.toISOString().split("T")[0];
+  if (typeof date === "number") {
+    return new Date(date).toISOString().slice(0, 10);
   }
 
   if (typeof date === "string") {
-    if (date.includes("T")) return date.split("T")[0];
-    return date;
+    return date.split("T")[0];
   }
 
   return null;
@@ -173,22 +171,17 @@ function toEvents(records) {
 function initCalendar(events) {
   const el = document.getElementById("calendar");
 
+  if (!el) {
+    console.error("Calendar container missing");
+    return;
+  }
+
   calendar = new FullCalendar.Calendar(el, {
     initialView: "dayGridMonth",
     editable: true,
     selectable: true,
 
-    eventDataTransform: (event) => ({
-      ...event,
-      start: normalizeDate(event.start)
-    }),
-
-    eventSources: [
-      {
-        id: EVENT_SOURCE_ID,
-        events: events
-      }
-    ],
+    events: events,
 
     eventDrop: async (info) => {
       await grist.docApi.applyUserActions([
@@ -296,21 +289,20 @@ async function reloadCalendar() {
 
   allRecords = rows;
 
-  const source = calendar.getEventSourceById(EVENT_SOURCE_ID);
+  if (!calendar) {
+    initCalendar(toEvents(rows));
+    return;
+  }
 
-  if (source) source.remove();
+  const filtered = currentFilter
+    ? rows.filter(r => r.employee === currentFilter)
+    : rows;
 
-  calendar.addEventSource({
-    id: EVENT_SOURCE_ID,
-    events: toEvents(
-      currentFilter
-        ? rows.filter(r => r.employee === currentFilter)
-        : rows
-    )
-  });
+  calendar.removeAllEvents();
+  calendar.addEventSource(toEvents(filtered));
 }
 
-/* -------------------- INIT SYNC -------------------- */
+/* -------------------- SYNC -------------------- */
 
 grist.onRecords(() => {
   reloadCalendar();
