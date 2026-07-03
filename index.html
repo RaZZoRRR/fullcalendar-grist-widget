@@ -101,7 +101,7 @@ async function init() {
   await reloadCalendar();
 }
 
-/* -------------------- LOAD STATIC DATA -------------------- */
+/* -------------------- LOAD -------------------- */
 
 async function loadData() {
   const empTable = await grist.docApi.fetchTable("Employees");
@@ -136,16 +136,39 @@ function fillFilter() {
     employees.map(e => `<option value="${e}">${e}</option>`).join("");
 }
 
-/* -------------------- CALENDAR -------------------- */
+/* -------------------- DATE NORMALIZER (FIX CORE) -------------------- */
+
+function normalizeDate(date) {
+  if (!date) return null;
+
+  if (typeof date === "number") {
+    return new Date(date).toISOString().split("T")[0];
+  }
+
+  if (date instanceof Date) {
+    return date.toISOString().split("T")[0];
+  }
+
+  if (typeof date === "string") {
+    if (date.includes("T")) return date.split("T")[0];
+    return date;
+  }
+
+  return null;
+}
+
+/* -------------------- EVENTS -------------------- */
 
 function toEvents(records) {
   return records.map(r => ({
     id: String(r.id),
     title: `${r.employee} / ${r.department}`,
-    start: r.date,
+    start: normalizeDate(r.date),
     allDay: true
   }));
 }
+
+/* -------------------- CALENDAR -------------------- */
 
 function initCalendar(events) {
   const el = document.getElementById("calendar");
@@ -154,6 +177,11 @@ function initCalendar(events) {
     initialView: "dayGridMonth",
     editable: true,
     selectable: true,
+
+    eventDataTransform: (event) => ({
+      ...event,
+      start: normalizeDate(event.start)
+    }),
 
     eventSources: [
       {
@@ -237,7 +265,7 @@ async function loadDayEntries(dateStr) {
     date: table.date[i]
   }));
 
-  const filtered = rows.filter(r => r.date === dateStr);
+  const filtered = rows.filter(r => normalizeDate(r.date) === dateStr);
 
   const container = document.getElementById("dayEntries");
 
@@ -254,7 +282,7 @@ async function loadDayEntries(dateStr) {
   `;
 }
 
-/* -------------------- SYNC ENGINE (FIXED) -------------------- */
+/* -------------------- SYNC ENGINE -------------------- */
 
 async function reloadCalendar() {
   const table = await grist.docApi.fetchTable("Shifts_TEST");
@@ -270,9 +298,7 @@ async function reloadCalendar() {
 
   const source = calendar.getEventSourceById(EVENT_SOURCE_ID);
 
-  if (source) {
-    source.remove();
-  }
+  if (source) source.remove();
 
   calendar.addEventSource({
     id: EVENT_SOURCE_ID,
