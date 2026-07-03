@@ -9,7 +9,10 @@
   <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
 
   <style>
-    body { margin: 0; font-family: sans-serif; }
+    body {
+      margin: 0;
+      font-family: sans-serif;
+    }
 
     #toolbar {
       display: flex;
@@ -56,6 +59,7 @@
 
 <body>
 
+<!-- FILTER -->
 <div id="toolbar">
   <label>Employee:</label>
   <select id="filterEmployee" onchange="applyFilter()"></select>
@@ -64,6 +68,7 @@
 
 <div id="calendar"></div>
 
+<!-- modal -->
 <div id="modal">
   <div id="modalContent">
     <div id="selectedDate"></div>
@@ -222,20 +227,20 @@ async function saveShift() {
   closeModal();
 }
 
-/* -------------------- DAY VIEW (FIXED) -------------------- */
+/* -------------------- DAY VIEW -------------------- */
 
-function sameDay(a, b) {
-  if (!a) return false;
-  const d = new Date(a);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}` === b;
-}
+async function loadDayEntries(dateStr) {
+  const table = await grist.docApi.fetchTable("Shifts_TEST");
 
-function loadDayEntries(dateStr) {
-  const filtered = allRecords.filter(r =>
-    sameDay(r.date, dateStr)
+  const rows = table.id.map((_, i) => ({
+    id: table.id[i],
+    employee: table.employee[i],
+    department: table.department[i],
+    date: table.date[i]
+  }));
+
+  const filtered = rows.filter(r =>
+    r.date && r.date.slice(0, 10) === dateStr
   );
 
   const container = document.getElementById("dayEntries");
@@ -271,6 +276,10 @@ grist.onRecords(records => {
     );
   }
 });
+</script>
+
+</body>
+</html>
 </script>
 
 </body>
