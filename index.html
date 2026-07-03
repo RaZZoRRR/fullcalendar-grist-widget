@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+
+  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+
+  <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
+
+  <style>
+    body { margin: 0; font-family: sans-serif; }
+
+    #calendar { max-width: 100%; margin: 10px; }
+
+    /* simple modal */
+    #modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.4);
+      justify-content: center;
+      align-items: center;
+    }
+
+    #modalContent {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      min-width: 260px;
+    }
+
+    select, button {
+      width: 100%;
+      margin-top: 10px;
+      padding: 6px;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="calendar"></div>
+
+  <!-- modal -->
+  <div id="modal">
+    <div id="modalContent">
+      <div id="selectedDate" style="margin-bottom:10px;"></div>
+
+      <select id="employeeSelect"></select>
+      <select id="departmentSelect"></select>
+
+      <button onclick="saveShift()">Save</button>
+      <button onclick="closeModal()">Cancel</button>
+    </div>
+  </div>
+
+<script>
+grist.ready({ allowSelectBy: true });
+
+let calendar;
+let selectedDate = null;
+
+let employees = [];
+let departments = [];
+
+/* -------------------- LOAD DICTIONARIES -------------------- */
+
+grist.onOptions(async () => {
+  const empTable = await grist.docApi.fetchTable("Employees");
+  const depTable = await grist.docApi.fetchTable("Departments");
+
+  employees = empTable.employee || empTable.name || [];
+  departments = depTable.department || depTable.name || [];
+
+  fillDropdowns();
+});
+
+/* -------------------- FILL DROPDOWNS -------------------- */
+
+function fillDropdowns() {
+  const empSel = document.getElementById("employeeSelect");
+  const depSel = document.getElementById("departmentSelect");
+
+  empSel.innerHTML = employees.map(e => `<option value="${e}">${e}</option>`).join("");
+  depSel.innerHTML = departments.map(d => `<option value="${d}">${d}</option>`).join("");
+}
+
+/* -------------------- EVENTS -------------------- */
+
+function toEvents(records) {
+  return records.map(r => ({
+    id: String(r.id),
+    title: `${r.employee} / ${r.department}`,
+    start: r.date,
+    allDay: true
+  }));
+}
+
+function initCalendar(events) {
+  const el = document.getElementById("calendar");
+
+  calendar = new FullCalendar.Calendar(el, {
+    initialView: "dayGridMonth",
+    editable: true,
+    selectable: true,
+    events: events,
+
+    eventDrop: async (info) => {
+      await grist.docApi.applyUserActions([
+        ["UpdateRecord", "Shifts", Number(info.event.id), {
+          date: info.event.startStr
+        }]
+      ]);
+    },
+
+    dateClick: (info) => {
+      selectedDate = info.dateStr;
+      openModal(info.dateStr);
+    }
+  });
+
+  calendar.render();
+}
+
+/* -------------------- MODAL -------------------- */
+
+function openModal(dateStr) {
+  document.getElementById("selectedDate").innerText = "Date: " + dateStr;
+  document.getElementById("modal").style.display = "flex";
+}
+
+function closeModal() {
+  document.getElementById("modal").style.display = "none";
+}
+
+/* -------------------- SAVE -------------------- */
+
+async function saveShift() {
+  const employee = document.getElementById("employeeSelect").value;
+  const department = document.getElementById("departmentSelect").value;
+
+  await grist.docApi.applyUserActions([
+    ["AddRecord", "Shifts", null, {
+      employee,
+      department,
+      date: selectedDate
+    }]
+  ]);
+
+  closeModal();
+}
+
+/* -------------------- GRIST SYNC -------------------- */
+
+grist.onRecords(records => {
+  const events = toEvents(records);
+
+  if (!calendar) {
+    initCalendar(events);
+  } else {
+    calendar.removeAllEvents();
+    calendar.addEventSource(events);
+  }
+});
+</script>
+
+</body>
+</html>
