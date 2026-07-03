@@ -205,7 +205,7 @@ function closeModal() {
   document.getElementById("modal").style.display = "none";
 }
 
-/* -------------------- SAVE (FIXED) -------------------- */
+/* -------------------- SAVE -------------------- */
 
 async function saveShift() {
   const employee = document.getElementById("employeeSelect").value;
@@ -218,21 +218,6 @@ async function saveShift() {
       date: selectedDate
     }]
   ]);
-
-  // 🔥 FIX: обновляем локальные данные и календарь
-  const table = await grist.docApi.fetchTable("Shifts_TEST");
-
-  const rows = table.id.map((_, i) => ({
-    id: table.id[i],
-    employee: table.employee[i],
-    department: table.department[i],
-    date: table.date[i]
-  }));
-
-  allRecords = rows;
-
-  calendar.removeAllEvents();
-  calendar.addEventSource(toEvents(rows));
 
   closeModal();
 }
@@ -266,12 +251,21 @@ async function loadDayEntries(dateStr) {
   `;
 }
 
-/* -------------------- SYNC -------------------- */
+/* -------------------- SYNC (FIXED) -------------------- */
 
-grist.onRecords(records => {
-  allRecords = records;
+grist.onRecords(async () => {
+  const table = await grist.docApi.fetchTable("Shifts_TEST");
 
-  const events = toEvents(records);
+  const rows = table.id.map((_, i) => ({
+    id: table.id[i],
+    employee: table.employee[i],
+    department: table.department[i],
+    date: table.date[i]
+  }));
+
+  allRecords = rows;
+
+  const events = toEvents(rows);
 
   if (!calendar) {
     initCalendar(events);
@@ -279,11 +273,12 @@ grist.onRecords(records => {
     calendar.removeAllEvents();
     calendar.addEventSource(
       currentFilter
-        ? toEvents(records.filter(r => r.employee === currentFilter))
+        ? toEvents(rows.filter(r => r.employee === currentFilter))
         : events
     );
   }
 });
+
 </script>
 
 </body>
