@@ -56,7 +56,6 @@
 
 <body>
 
-<!-- FILTER -->
 <div id="toolbar">
   <label>Employee:</label>
   <select id="filterEmployee" onchange="applyFilter()"></select>
@@ -65,7 +64,6 @@
 
 <div id="calendar"></div>
 
-<!-- modal -->
 <div id="modal">
   <div id="modalContent">
     <div id="selectedDate"></div>
@@ -88,7 +86,7 @@ let selectedDate = null;
 
 let employees = [];
 let departments = [];
-let allRecords = [];
+let shifts = [];
 let currentFilter = null;
 
 /* -------------------- INIT -------------------- */
@@ -96,13 +94,14 @@ let currentFilter = null;
 init();
 
 async function init() {
-  await loadData();
+  await loadEmployeesAndDepartments();
+  await loadShifts();
   setupUI();
 }
 
 /* -------------------- LOAD -------------------- */
 
-async function loadData() {
+async function loadEmployeesAndDepartments() {
   const empTable = await grist.docApi.fetchTable("Employees");
   const depTable = await grist.docApi.fetchTable("Departments");
 
@@ -110,11 +109,25 @@ async function loadData() {
   departments = depTable.department || depTable.name || [];
 }
 
+async function loadShifts() {
+  const table = await grist.docApi.fetchTable("Shifts_TEST");
+
+  shifts = table.id.map((_, i) => ({
+    id: table.id[i],
+    employee: table.employee[i],
+    department: table.department[i],
+    date: table.date[i]
+  }));
+
+  refreshCalendar();
+}
+
 /* -------------------- UI -------------------- */
 
 function setupUI() {
   fillDropdowns();
   fillFilter();
+  initCalendar(toEvents(shifts));
 }
 
 /* -------------------- DROPDOWNS -------------------- */
@@ -133,6 +146,16 @@ function fillFilter() {
   f.innerHTML =
     `<option value="">All employees</option>` +
     employees.map(e => `<option value="${e}">${e}</option>`).join("");
+}
+
+/* -------------------- DATE HELP -------------------- */
+
+function sameDay(a, b) {
+  const d = new Date(a);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}` === b;
 }
 
 /* -------------------- CALENDAR -------------------- */
@@ -161,6 +184,8 @@ function initCalendar(events) {
           date: info.event.startStr
         }]
       ]);
+
+      await loadShifts();
     },
 
     dateClick: (info) => {
@@ -172,26 +197,29 @@ function initCalendar(events) {
   calendar.render();
 }
 
-/* -------------------- FILTER -------------------- */
-
-function applyFilter() {
-  const value = document.getElementById("filterEmployee").value;
-  currentFilter = value || null;
+function refreshCalendar() {
+  if (!calendar) return;
 
   const filtered = currentFilter
-    ? allRecords.filter(r => r.employee === currentFilter)
-    : allRecords;
+    ? shifts.filter(r => r.employee === currentFilter)
+    : shifts;
 
   calendar.removeAllEvents();
   calendar.addEventSource(toEvents(filtered));
 }
 
+/* -------------------- FILTER -------------------- */
+
+function applyFilter() {
+  const value = document.getElementById("filterEmployee").value;
+  currentFilter = value || null;
+  refreshCalendar();
+}
+
 function resetFilter() {
   document.getElementById("filterEmployee").value = "";
   currentFilter = null;
-
-  calendar.removeAllEvents();
-  calendar.addEventSource(toEvents(allRecords));
+  refreshCalendar();
 }
 
 /* -------------------- MODAL -------------------- */
@@ -221,24 +249,15 @@ async function saveShift() {
     }]
   ]);
 
+  await loadShifts();
+  loadDayEntries(selectedDate);
   closeModal();
 }
 
 /* -------------------- DAY VIEW -------------------- */
 
-async function loadDayEntries(dateStr) {
-  const table = await grist.docApi.fetchTable("Shifts_TEST");
-
-  const rows = table.id.map((_, i) => ({
-    id: table.id[i],
-    employee: table.employee[i],
-    department: table.department[i],
-    date: table.date[i]
-  }));
-
-  const filtered = rows.filter(r =>
-  r.date && r.date.slice(0, 10) === dateStr
-);
+function loadDayEntries(dateStr) {
+  const filtered = shifts.filter(r => sameDay(r.date, dateStr));
 
   const container = document.getElementById("dayEntries");
 
@@ -255,24 +274,6 @@ async function loadDayEntries(dateStr) {
   `;
 }
 
-/* -------------------- SYNC -------------------- */
-
-grist.onRecords(records => {
-  allRecords = records;
-
-  const events = toEvents(records);
-
-  if (!calendar) {
-    initCalendar(events);
-  } else {
-    calendar.removeAllEvents();
-    calendar.addEventSource(
-      currentFilter
-        ? toEvents(records.filter(r => r.employee === currentFilter))
-        : events
-    );
-  }
-});
 </script>
 
 </body>
