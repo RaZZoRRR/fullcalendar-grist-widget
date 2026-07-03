@@ -56,7 +56,7 @@
 
 <body>
 
-<!-- 🔎 FILTER BAR -->
+<!-- FILTER -->
 <div id="toolbar">
   <label>Employee:</label>
   <select id="filterEmployee" onchange="applyFilter()"></select>
@@ -91,6 +91,15 @@ let departments = [];
 let allRecords = [];
 let currentFilter = null;
 
+/* -------------------- INIT -------------------- */
+
+init();
+
+async function init() {
+  await loadData();
+  setupUI();
+}
+
 /* -------------------- LOAD -------------------- */
 
 async function loadData() {
@@ -99,12 +108,14 @@ async function loadData() {
 
   employees = empTable.employee || empTable.name || [];
   departments = depTable.department || depTable.name || [];
+}
 
+/* -------------------- UI -------------------- */
+
+function setupUI() {
   fillDropdowns();
   fillFilter();
 }
-
-loadData();
 
 /* -------------------- DROPDOWNS -------------------- */
 
@@ -131,10 +142,7 @@ function toEvents(records) {
     id: String(r.id),
     title: `${r.employee} / ${r.department}`,
     start: r.date,
-    allDay: true,
-    extendedProps: {
-      employee: r.employee
-    }
+    allDay: true
   }));
 }
 
