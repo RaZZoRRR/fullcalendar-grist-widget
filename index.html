@@ -23,7 +23,6 @@
       margin: 0 10px 10px 10px;
       position: relative;
       z-index: 1;
-      min-height: 500px;
     }
 
     #modal {
@@ -97,7 +96,6 @@ init();
 async function init() {
   await loadData();
   setupUI();
-  await reloadCalendar();
 }
 
 /* -------------------- LOAD -------------------- */
@@ -135,52 +133,24 @@ function fillFilter() {
     employees.map(e => `<option value="${e}">${e}</option>`).join("");
 }
 
-/* -------------------- DATE FIX -------------------- */
-
-function normalizeDate(date) {
-  if (!date) return null;
-
-  if (date instanceof Date) {
-    return date.toISOString().slice(0, 10);
-  }
-
-  if (typeof date === "number") {
-    return new Date(date).toISOString().slice(0, 10);
-  }
-
-  if (typeof date === "string") {
-    return date.split("T")[0];
-  }
-
-  return null;
-}
-
-/* -------------------- EVENTS -------------------- */
+/* -------------------- CALENDAR -------------------- */
 
 function toEvents(records) {
   return records.map(r => ({
     id: String(r.id),
     title: `${r.employee} / ${r.department}`,
-    start: normalizeDate(r.date),
+    start: r.date,
     allDay: true
   }));
 }
 
-/* -------------------- CALENDAR -------------------- */
-
 function initCalendar(events) {
   const el = document.getElementById("calendar");
-
-  if (!el) {
-    console.error("Calendar container missing");
-    return;
-  }
 
   calendar = new FullCalendar.Calendar(el, {
     initialView: "dayGridMonth",
     editable: true,
     selectable: true,
-
     events: events,
 
     eventDrop: async (info) => {
@@ -189,8 +159,6 @@ function initCalendar(events) {
           date: info.event.startStr
         }]
       ]);
-
-      await reloadCalendar();
     },
 
     dateClick: (info) => {
@@ -205,14 +173,23 @@ function initCalendar(events) {
 /* -------------------- FILTER -------------------- */
 
 function applyFilter() {
-  currentFilter = document.getElementById("filterEmployee").value || null;
-  reloadCalendar();
+  const value = document.getElementById("filterEmployee").value;
+  currentFilter = value || null;
+
+  const filtered = currentFilter
+    ? allRecords.filter(r => r.employee === currentFilter)
+    : allRecords;
+
+  calendar.removeAllEvents();
+  calendar.addEventSource(toEvents(filtered));
 }
 
 function resetFilter() {
   document.getElementById("filterEmployee").value = "";
   currentFilter = null;
-  reloadCalendar();
+
+  calendar.removeAllEvents();
+  calendar.addEventSource(toEvents(allRecords));
 }
 
 /* -------------------- MODAL -------------------- */
@@ -242,7 +219,6 @@ async function saveShift() {
     }]
   ]);
 
-  await reloadCalendar();
   closeModal();
 }
 
@@ -258,7 +234,7 @@ async function loadDayEntries(dateStr) {
     date: table.date[i]
   }));
 
-  const filtered = rows.filter(r => normalizeDate(r.date) === dateStr);
+  const filtered = rows.filter(r => r.date === dateStr);
 
   const container = document.getElementById("dayEntries");
 
@@ -275,9 +251,9 @@ async function loadDayEntries(dateStr) {
   `;
 }
 
-/* -------------------- SYNC ENGINE -------------------- */
+/* -------------------- SYNC (FIXED) -------------------- */
 
-async function reloadCalendar() {
+grist.onRecords(async () => {
   const table = await grist.docApi.fetchTable("Shifts_TEST");
 
   const rows = table.id.map((_, i) => ({
@@ -289,23 +265,18 @@ async function reloadCalendar() {
 
   allRecords = rows;
 
+  const events = toEvents(rows);
+
   if (!calendar) {
-    initCalendar(toEvents(rows));
-    return;
+    initCalendar(events);
+  } else {
+    calendar.removeAllEvents();
+    calendar.addEventSource(
+      currentFilter
+        ? toEvents(rows.filter(r => r.employee === currentFilter))
+        : events
+    );
   }
-
-  const filtered = currentFilter
-    ? rows.filter(r => r.employee === currentFilter)
-    : rows;
-
-  calendar.removeAllEvents();
-  calendar.addEventSource(toEvents(filtered));
-}
-
-/* -------------------- SYNC -------------------- */
-
-grist.onRecords(() => {
-  reloadCalendar();
 });
 
 </script>
