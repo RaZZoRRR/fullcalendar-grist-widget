@@ -11,9 +11,16 @@
   <style>
     body { margin: 0; font-family: sans-serif; }
 
+    #toolbar {
+      display: flex;
+      gap: 10px;
+      padding: 10px;
+      align-items: center;
+    }
+
     #calendar {
       max-width: 100%;
-      margin: 10px;
+      margin: 0 10px 10px 10px;
       position: relative;
       z-index: 1;
     }
@@ -32,35 +39,44 @@
       background: white;
       padding: 20px;
       border-radius: 8px;
-      min-width: 260px;
+      min-width: 300px;
     }
 
     select, button {
-      width: 100%;
-      margin-top: 10px;
       padding: 6px;
     }
 
-    .fc {
-      z-index: 1;
+    #dayEntries {
+      margin-top: 15px;
+      border-top: 1px solid #ddd;
+      padding-top: 10px;
     }
   </style>
 </head>
 
 <body>
 
+<!-- 🔎 FILTER BAR -->
+<div id="toolbar">
+  <label>Employee:</label>
+  <select id="filterEmployee" onchange="applyFilter()"></select>
+  <button onclick="resetFilter()">All</button>
+</div>
+
 <div id="calendar"></div>
 
 <!-- modal -->
 <div id="modal">
   <div id="modalContent">
-    <div id="selectedDate" style="margin-bottom:10px;"></div>
+    <div id="selectedDate"></div>
 
     <select id="employeeSelect"></select>
     <select id="departmentSelect"></select>
 
     <button onclick="saveShift()">Save</button>
     <button onclick="closeModal()">Cancel</button>
+
+    <div id="dayEntries"></div>
   </div>
 </div>
 
@@ -72,38 +88,40 @@ let selectedDate = null;
 
 let employees = [];
 let departments = [];
+let allRecords = [];
+let currentFilter = null;
 
-/* -------------------- LOAD DICTIONARIES -------------------- */
+/* -------------------- LOAD -------------------- */
 
-async function loadDictionaries() {
-  try {
-    const empTable = await grist.docApi.fetchTable("Employees");
-    const depTable = await grist.docApi.fetchTable("Departments");
+async function loadData() {
+  const empTable = await grist.docApi.fetchTable("Employees");
+  const depTable = await grist.docApi.fetchTable("Departments");
 
-    employees = empTable.employee || empTable.name || [];
-    departments = depTable.department || depTable.name || [];
+  employees = empTable.employee || empTable.name || [];
+  departments = depTable.department || depTable.name || [];
 
-    fillDropdowns();
-  } catch (e) {
-    console.error("Error loading dictionaries:", e);
-  }
+  fillDropdowns();
+  fillFilter();
 }
 
-loadDictionaries();
+loadData();
 
 /* -------------------- DROPDOWNS -------------------- */
 
 function fillDropdowns() {
-  const empSel = document.getElementById("employeeSelect");
-  const depSel = document.getElementById("departmentSelect");
+  document.getElementById("employeeSelect").innerHTML =
+    employees.map(e => `<option value="${e}">${e}</option>`).join("");
 
-  empSel.innerHTML = employees
-    .map(e => `<option value="${e}">${e}</option>`)
-    .join("");
+  document.getElementById("departmentSelect").innerHTML =
+    departments.map(d => `<option value="${d}">${d}</option>`).join("");
+}
 
-  depSel.innerHTML = departments
-    .map(d => `<option value="${d}">${d}</option>`)
-    .join("");
+function fillFilter() {
+  const f = document.getElementById("filterEmployee");
+
+  f.innerHTML =
+    `<option value="">All employees</option>` +
+    employees.map(e => `<option value="${e}">${e}</option>`).join("");
 }
 
 /* -------------------- CALENDAR -------------------- */
@@ -113,7 +131,10 @@ function toEvents(records) {
     id: String(r.id),
     title: `${r.employee} / ${r.department}`,
     start: r.date,
-    allDay: true
+    allDay: true,
+    extendedProps: {
+      employee: r.employee
+    }
   }));
 }
 
@@ -143,11 +164,35 @@ function initCalendar(events) {
   calendar.render();
 }
 
+/* -------------------- FILTER -------------------- */
+
+function applyFilter() {
+  const value = document.getElementById("filterEmployee").value;
+  currentFilter = value || null;
+
+  const filtered = currentFilter
+    ? allRecords.filter(r => r.employee === currentFilter)
+    : allRecords;
+
+  calendar.removeAllEvents();
+  calendar.addEventSource(toEvents(filtered));
+}
+
+function resetFilter() {
+  document.getElementById("filterEmployee").value = "";
+  currentFilter = null;
+
+  calendar.removeAllEvents();
+  calendar.addEventSource(toEvents(allRecords));
+}
+
 /* -------------------- MODAL -------------------- */
 
 function openModal(dateStr) {
   document.getElementById("selectedDate").innerText = "Date: " + dateStr;
   document.getElementById("modal").style.display = "flex";
+
+  loadDayEntries(dateStr);
 }
 
 function closeModal() {
@@ -160,11 +205,6 @@ async function saveShift() {
   const employee = document.getElementById("employeeSelect").value;
   const department = document.getElementById("departmentSelect").value;
 
-  if (!employee || !department || !selectedDate) {
-    console.error("Missing data", { employee, department, selectedDate });
-    return;
-  }
-
   await grist.docApi.applyUserActions([
     ["AddRecord", "Shifts_TEST", null, {
       employee,
@@ -176,16 +216,51 @@ async function saveShift() {
   closeModal();
 }
 
+/* -------------------- DAY VIEW -------------------- */
+
+async function loadDayEntries(dateStr) {
+  const table = await grist.docApi.fetchTable("Shifts_TEST");
+
+  const rows = table.id.map((_, i) => ({
+    id: table.id[i],
+    employee: table.employee[i],
+    department: table.department[i],
+    date: table.date[i]
+  }));
+
+  const filtered = rows.filter(r => r.date === dateStr);
+
+  const container = document.getElementById("dayEntries");
+
+  if (!filtered.length) {
+    container.innerHTML = "<b>No shifts for this day</b>";
+    return;
+  }
+
+  container.innerHTML = `
+    <b>Shifts:</b>
+    <ul>
+      ${filtered.map(r => `<li>${r.employee} / ${r.department}</li>`).join("")}
+    </ul>
+  `;
+}
+
 /* -------------------- SYNC -------------------- */
 
 grist.onRecords(records => {
+  allRecords = records;
+
   const events = toEvents(records);
 
   if (!calendar) {
     initCalendar(events);
   } else {
     calendar.removeAllEvents();
-    calendar.addEventSource(events);
+    calendar.addEventSource(
+      currentFilter
+        ? toEvents(records.filter(r => r.employee === currentFilter))
+        : events
+    );
   }
 });
 </script>
