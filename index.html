@@ -56,7 +56,6 @@
 
 <body>
 
-<!-- FILTER -->
 <div id="toolbar">
   <label>Employee:</label>
   <select id="filterEmployee" onchange="applyFilter()"></select>
@@ -65,7 +64,6 @@
 
 <div id="calendar"></div>
 
-<!-- modal -->
 <div id="modal">
   <div id="modalContent">
     <div id="selectedDate"></div>
@@ -207,7 +205,7 @@ function closeModal() {
   document.getElementById("modal").style.display = "none";
 }
 
-/* -------------------- SAVE -------------------- */
+/* -------------------- SAVE (FIXED) -------------------- */
 
 async function saveShift() {
   const employee = document.getElementById("employeeSelect").value;
@@ -220,6 +218,21 @@ async function saveShift() {
       date: selectedDate
     }]
   ]);
+
+  // 🔥 FIX: обновляем локальные данные и календарь
+  const table = await grist.docApi.fetchTable("Shifts_TEST");
+
+  const rows = table.id.map((_, i) => ({
+    id: table.id[i],
+    employee: table.employee[i],
+    department: table.department[i],
+    date: table.date[i]
+  }));
+
+  allRecords = rows;
+
+  calendar.removeAllEvents();
+  calendar.addEventSource(toEvents(rows));
 
   closeModal();
 }
