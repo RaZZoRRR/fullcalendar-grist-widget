@@ -345,8 +345,30 @@
       }
     };
 
-    grist.ready({ allowSelectBy: true });
-
+    grist.ready({
+  requiredAccess: "full",
+  allowSelectBy: true,
+  columns: [
+    {
+      name: "date",
+      title: "Date",
+      type: "Date"
+    },
+    {
+      name: "employee",
+      title: "Employee"
+    },
+    {
+      name: "department",
+      title: "Department"
+    },
+    {
+      name: "status",
+      title: "Status",
+      type: "Choice"
+    }
+  ]
+});
     let calendar;
     let selectedDate = null;
     let selectedStatus = "Работа";
@@ -818,24 +840,48 @@ function toEvents(records) {
 
     /* -------------------- SYNC -------------------- */
 
-    grist.onRecords(records => {
-      allRecords = records;
+   grist.onRecords((records, mappings) => {
+  const mappedRecords = records.map(record => ({
+    id: record.id,
 
-      const events = toEvents(records);
+    date: mappings?.date
+      ? record[mappings.date]
+      : record.date,
 
-      if (!calendar) {
-        initCalendar(events);
-      } else {
-        renderEvents();
-      }
+    employee: mappings?.employee
+      ? record[mappings.employee]
+      : record.employee,
 
-      if (
-        selectedDate &&
-        document.getElementById("modal").style.display === "flex"
-      ) {
-        loadDayEntries(selectedDate);
-      }
-    });
+    department: mappings?.department
+      ? record[mappings.department]
+      : record.department,
+
+    status: mappings?.status
+      ? record[mappings.status]
+      : record.status
+  }));
+
+  console.log("MAPPINGS:", mappings);
+  console.log("RAW RECORDS:", records);
+  console.log("MAPPED RECORDS:", mappedRecords);
+
+  allRecords = mappedRecords;
+
+  const events = toEvents(mappedRecords);
+
+  if (!calendar) {
+    initCalendar(events);
+  } else {
+    renderEvents();
+  }
+
+  if (
+    selectedDate &&
+    document.getElementById("modal").style.display === "flex"
+  ) {
+    loadDayEntries(selectedDate);
+  }
+});
 
   </script>
 
