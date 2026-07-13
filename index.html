@@ -488,33 +488,33 @@
 
     /* -------------------- EVENTS -------------------- */
 
-    function toEvents(records) {
-      return records.map(record => {
-        const status = normalizeStatus(record.status);
-        const config = getStatusConfig(status);
+function toEvents(records) {
+  return records.map(record => {
+    const status = normalizeStatus(record.status);
+    const config = getStatusConfig(status);
 
-        return {
-          id: String(record.id),
+    return {
+      id: String(record.id),
 
-          title:
-            `${config.icon} ${record.employee} / ${record.department}`,
+      title:
+        `${config.icon} ${record.employee} / ${record.department}`,
 
-          start: record.date,
+      start: record.date,
+      allDay: true,
 
-          allDay: true,
+      color: config.color,
+      backgroundColor: config.color,
+      borderColor: config.color,
+      textColor: config.textColor,
 
-          backgroundColor: config.color,
-          borderColor: config.color,
-          textColor: config.textColor,
-
-          extendedProps: {
-            employee: record.employee,
-            department: record.department,
-            status: status
-          }
-        };
-      });
-    }
+      extendedProps: {
+        employee: record.employee,
+        department: record.department,
+        status: status
+      }
+    };
+  });
+}
 
 
     /* -------------------- CALENDAR -------------------- */
@@ -523,12 +523,32 @@
       const element = document.getElementById("calendar");
 
       calendar = new FullCalendar.Calendar(element, {
-        initialView: "dayGridMonth",
+  initialView: "dayGridMonth",
 
-        editable: true,
-        selectable: true,
+  editable: true,
+  selectable: true,
 
-        events: events,
+  events: events,
+
+  eventDidMount: info => {
+    const status = normalizeStatus(
+      info.event.extendedProps.status
+    );
+
+    const config = getStatusConfig(status);
+
+    info.el.style.setProperty(
+      "background-color",
+      config.color,
+      "important"
+    );
+
+    info.el.style.setProperty(
+      "border-color",
+      config.color,
+      "important"
+    );
+  },
 
         eventDrop: async info => {
           try {
