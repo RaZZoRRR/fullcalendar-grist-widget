@@ -178,7 +178,7 @@ function initCalendar(events) {
 
     eventDrop: async (info) => {
       await grist.docApi.applyUserActions([
-        ["UpdateRecord", "Shifts_TEST", Number(info.event.id), {
+        ["UpdateRecord", "Interactive_calendar", Number(info.event.id), {
           date: info.event.startStr
         }]
       ]);
@@ -245,7 +245,7 @@ async function saveShift() {
   const department = document.getElementById("departmentSelect").value;
 
   await grist.docApi.applyUserActions([
-    ["AddRecord", "Shifts_TEST", null, {
+    ["AddRecord", "Interactive_calendar", null, {
       employee,
       department,
       date: selectedDate
@@ -258,7 +258,7 @@ async function saveShift() {
 /* -------------------- DAY VIEW -------------------- */
 
 async function loadDayEntries(dateStr) {
-  const table = await grist.docApi.fetchTable("Shifts_TEST");
+  const table = await grist.docApi.fetchTable("Interactive_calendar");
 
   const rows = table.id.map((_, i) => ({
     id: table.id[i],
