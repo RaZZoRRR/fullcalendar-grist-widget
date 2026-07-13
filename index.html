@@ -3,27 +3,77 @@
 <head>
   <meta charset="UTF-8" />
 
-  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+  <link
+    href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css"
+    rel="stylesheet"
+  >
 
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
   <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
 
   <style>
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       margin: 0;
-      font-family: sans-serif;
+      font-family: Arial, sans-serif;
+      color: #262633;
+      background: #ffffff;
     }
 
     #toolbar {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px;
-  background: #f7f7f7;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  width: fit-content;
-}
+      display: flex;
+      flex-wrap: wrap;
+      align-items: end;
+      gap: 10px;
+      padding: 12px;
+      margin: 10px;
+      background: #f7f7f7;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+    }
+
+    .toolbar-field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    label {
+      font-size: 12px;
+      font-weight: 600;
+      color: #555;
+    }
+
+    select,
+    button {
+      min-height: 34px;
+      padding: 6px 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      background: white;
+      font-size: 14px;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #eee;
+    }
+
+    .primary-button {
+      background: #16a765;
+      border-color: #16a765;
+      color: white;
+    }
+
+    .primary-button:hover {
+      background: #138a54;
+    }
 
     #calendar {
       max-width: 100%;
@@ -36,281 +86,738 @@
       display: none;
       position: fixed;
       inset: 0;
-      background: rgba(0,0,0,0.4);
+      background: rgba(0, 0, 0, 0.45);
       justify-content: center;
       align-items: center;
       z-index: 9999;
+      padding: 20px;
     }
 
     #modalContent {
       background: white;
       padding: 20px;
-      border-radius: 8px;
-      min-width: 300px;
+      border-radius: 10px;
+      width: 100%;
+      max-width: 460px;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
     }
 
-    select, button {
-      padding: 6px;
+    #selectedDate {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 16px;
+    }
+
+    .form-field {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      margin-bottom: 12px;
+    }
+
+    .form-field select {
+      width: 100%;
+    }
+
+    .status-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 5px;
+    }
+
+    .status-button {
+      padding: 10px;
+      min-height: 44px;
+      text-align: left;
+      border: 2px solid transparent;
+      transition: 0.15s;
+    }
+
+    .status-button.selected {
+      border-color: #262633;
+      font-weight: 700;
+      transform: translateY(-1px);
+    }
+
+    .status-work {
+      background: #dcfce7;
+    }
+
+    .status-vacation {
+      background: #fef3c7;
+    }
+
+    .status-sick {
+      background: #fee2e2;
+    }
+
+    .status-dayoff {
+      background: #dbeafe;
+    }
+
+    .status-force {
+      background: #ede9fe;
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 16px;
     }
 
     #dayEntries {
-      margin-top: 15px;
+      margin-top: 18px;
       border-top: 1px solid #ddd;
-      padding-top: 10px;
+      padding-top: 12px;
+    }
+
+    .day-entry {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px;
+      margin-top: 6px;
+      border-radius: 6px;
+      background: #f7f7f7;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex: 0 0 10px;
+    }
+
+    .fc-event {
+      cursor: pointer;
+    }
+
+    @media (max-width: 500px) {
+      .status-grid {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
 
 <body>
 
-<!-- FILTER -->
-<div id="toolbar">
-  <label>Employee:</label>
-<select id="filterEmployee" onchange="applyFilter()"></select>
+  <!-- FILTER -->
 
-<label>Department:</label>
-<select id="filterDepartment" onchange="applyFilter()"></select>
+  <div id="toolbar">
+    <div class="toolbar-field">
+      <label for="filterEmployee">Employee:</label>
+      <select id="filterEmployee" onchange="applyFilter()"></select>
+    </div>
 
-<button onclick="resetFilter()">All</button>
-</div>
+    <div class="toolbar-field">
+      <label for="filterDepartment">Department:</label>
+      <select id="filterDepartment" onchange="applyFilter()"></select>
+    </div>
 
-<div id="calendar"></div>
+    <div class="toolbar-field">
+      <label for="filterStatus">Status:</label>
+      <select id="filterStatus" onchange="applyFilter()">
+        <option value="">All statuses</option>
+        <option value="Работа">🟢 Работа</option>
+        <option value="Отпуск">🏖 Отпуск</option>
+        <option value="Больничный">🤒 Больничный</option>
+        <option value="Выходной">🏠 Выходной</option>
+        <option value="Форс-мажор">⚠ Форс-мажор</option>
+      </select>
+    </div>
 
-<!-- modal -->
-<div id="modal">
-  <div id="modalContent">
-    <div id="selectedDate"></div>
-
-    <select id="employeeSelect"></select>
-    <select id="departmentSelect"></select>
-
-    <button onclick="saveShift()">Save</button>
-    <button onclick="closeModal()">Cancel</button>
-
-    <div id="dayEntries"></div>
+    <button onclick="resetFilter()">All</button>
   </div>
-</div>
 
-<script>
-grist.ready({ allowSelectBy: true });
+  <div id="calendar"></div>
 
-let calendar;
-let selectedDate = null;
+  <!-- MODAL -->
 
-let employees = [];
-let departments = [];
-let allRecords = [];
-let currentFilter = null;
-let currentDepartmentFilter = null;
+  <div id="modal">
+    <div id="modalContent">
 
-/* -------------------- INIT -------------------- */
+      <div id="selectedDate"></div>
 
-init();
+      <div class="form-field">
+        <label for="employeeSelect">Employee</label>
+        <select id="employeeSelect"></select>
+      </div>
 
-async function init() {
-  await loadData();
-  setupUI();
-}
+      <div class="form-field">
+        <label for="departmentSelect">Department</label>
+        <select id="departmentSelect"></select>
+      </div>
 
-/* -------------------- LOAD -------------------- */
+      <div class="form-field">
+        <label>Shift status</label>
 
-async function loadData() {
-  const empTable = await grist.docApi.fetchTable("Employees");
-  const depTable = await grist.docApi.fetchTable("Departments");
+        <div class="status-grid">
+          <button
+            type="button"
+            class="status-button status-work"
+            data-status="Работа"
+            onclick="selectStatus('Работа')"
+          >
+            🟢 Работа
+          </button>
 
-  employees = empTable.employee || empTable.name || [];
-  departments = depTable.department || depTable.name || [];
-}
+          <button
+            type="button"
+            class="status-button status-vacation"
+            data-status="Отпуск"
+            onclick="selectStatus('Отпуск')"
+          >
+            🏖 Отпуск
+          </button>
 
-/* -------------------- UI -------------------- */
+          <button
+            type="button"
+            class="status-button status-sick"
+            data-status="Больничный"
+            onclick="selectStatus('Больничный')"
+          >
+            🤒 Больничный
+          </button>
 
-function setupUI() {
-  fillDropdowns();
-  fillFilter();
-  fillDepartmentFilter();
-}
+          <button
+            type="button"
+            class="status-button status-dayoff"
+            data-status="Выходной"
+            onclick="selectStatus('Выходной')"
+          >
+            🏠 Выходной
+          </button>
 
-/* -------------------- DROPDOWNS -------------------- */
+          <button
+            type="button"
+            class="status-button status-force"
+            data-status="Форс-мажор"
+            onclick="selectStatus('Форс-мажор')"
+          >
+            ⚠ Форс-мажор
+          </button>
+        </div>
+      </div>
 
-function fillDropdowns() {
-  document.getElementById("employeeSelect").innerHTML =
-    employees.map(e => `<option value="${e}">${e}</option>`).join("");
+      <div class="modal-actions">
+        <button onclick="closeModal()">Cancel</button>
+        <button class="primary-button" onclick="saveShift()">Save</button>
+      </div>
 
-  document.getElementById("departmentSelect").innerHTML =
-    departments.map(d => `<option value="${d}">${d}</option>`).join("");
-}
+      <div id="dayEntries"></div>
 
-function fillFilter() {
-  const f = document.getElementById("filterEmployee");
+    </div>
+  </div>
 
-  f.innerHTML =
-    `<option value="">All employees</option>` +
-    employees.map(e => `<option value="${e}">${e}</option>`).join("");
-}
+  <script>
+    const CALENDAR_TABLE = "Interactive_calendar";
 
-function fillDepartmentFilter() {
-  const f = document.getElementById("filterDepartment");
+    const STATUS_CONFIG = {
+      "Работа": {
+        icon: "🟢",
+        color: "#22c55e",
+        textColor: "#ffffff"
+      },
+      "Отпуск": {
+        icon: "🏖",
+        color: "#f59e0b",
+        textColor: "#ffffff"
+      },
+      "Больничный": {
+        icon: "🤒",
+        color: "#ef4444",
+        textColor: "#ffffff"
+      },
+      "Выходной": {
+        icon: "🏠",
+        color: "#3b82f6",
+        textColor: "#ffffff"
+      },
+      "Форс-мажор": {
+        icon: "⚠",
+        color: "#7c3aed",
+        textColor: "#ffffff"
+      }
+    };
 
-  f.innerHTML =
-    `<option value="">All departments</option>` +
-    departments.map(d => `<option value="${d}">${d}</option>`).join("");
-}
+    grist.ready({ allowSelectBy: true });
 
-/* -------------------- CALENDAR -------------------- */
+    let calendar;
+    let selectedDate = null;
+    let selectedStatus = "Работа";
 
-function toEvents(records) {
-  return records.map(r => ({
-    id: String(r.id),
-    title: `${r.employee} / ${r.department}`,
-    start: r.date,
-    allDay: true
-  }));
-}
+    let employees = [];
+    let departments = [];
+    let allRecords = [];
 
-function initCalendar(events) {
-  const el = document.getElementById("calendar");
+    let currentFilter = null;
+    let currentDepartmentFilter = null;
+    let currentStatusFilter = null;
 
-  calendar = new FullCalendar.Calendar(el, {
-    initialView: "dayGridMonth",
-    editable: true,
-    selectable: true,
-    events: events,
 
-    eventDrop: async (info) => {
-      await grist.docApi.applyUserActions([
-        ["UpdateRecord", "Interactive_calendar", Number(info.event.id), {
-          date: info.event.startStr
-        }]
-      ]);
-    },
+    /* -------------------- INIT -------------------- */
 
-    dateClick: (info) => {
-      selectedDate = info.dateStr;
-      openModal(info.dateStr);
+    init();
+
+    async function init() {
+      try {
+        await loadData();
+        setupUI();
+      } catch (error) {
+        console.error("Initialization error:", error);
+      }
     }
-  });
 
-  calendar.render();
-}
 
-/* -------------------- FILTER -------------------- */
+    /* -------------------- LOAD -------------------- */
 
-function applyFilter() {
-  currentFilter = document.getElementById("filterEmployee").value || null;
-  currentDepartmentFilter =
-    document.getElementById("filterDepartment").value || null;
+    async function loadData() {
+      const empTable = await grist.docApi.fetchTable("Employees");
+      const depTable = await grist.docApi.fetchTable("Departments");
 
-  let filtered = allRecords;
+      employees = empTable.employee || empTable.name || [];
+      departments = depTable.department || depTable.name || [];
+    }
 
-  if (currentFilter) {
-    filtered = filtered.filter(r => r.employee === currentFilter);
-  }
 
-  if (currentDepartmentFilter) {
-    filtered = filtered.filter(r => r.department === currentDepartmentFilter);
-  }
+    /* -------------------- UI -------------------- */
 
-  calendar.removeAllEvents();
-  calendar.addEventSource(toEvents(filtered));
-}
+    function setupUI() {
+      fillDropdowns();
+      fillFilter();
+      fillDepartmentFilter();
+      selectStatus("Работа");
+    }
 
-function resetFilter() {
-  document.getElementById("filterEmployee").value = "";
-  document.getElementById("filterDepartment").value = "";
 
-  currentFilter = null;
-  currentDepartmentFilter = null;
+    /* -------------------- ESCAPE HTML -------------------- */
 
-  calendar.removeAllEvents();
-  calendar.addEventSource(toEvents(allRecords));
-}
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
 
-/* -------------------- MODAL -------------------- */
 
-function openModal(dateStr) {
-  document.getElementById("selectedDate").innerText = "Date: " + dateStr;
-  document.getElementById("modal").style.display = "flex";
+    /* -------------------- DROPDOWNS -------------------- */
 
-  loadDayEntries(dateStr);
-}
+    function fillDropdowns() {
+      document.getElementById("employeeSelect").innerHTML =
+        employees
+          .map(e => `
+            <option value="${escapeHtml(e)}">
+              ${escapeHtml(e)}
+            </option>
+          `)
+          .join("");
 
-function closeModal() {
-  document.getElementById("modal").style.display = "none";
-}
+      document.getElementById("departmentSelect").innerHTML =
+        departments
+          .map(d => `
+            <option value="${escapeHtml(d)}">
+              ${escapeHtml(d)}
+            </option>
+          `)
+          .join("");
+    }
 
-/* -------------------- SAVE -------------------- */
 
-async function saveShift() {
-  const employee = document.getElementById("employeeSelect").value;
-  const department = document.getElementById("departmentSelect").value;
+    function fillFilter() {
+      const filter = document.getElementById("filterEmployee");
 
-  await grist.docApi.applyUserActions([
-    ["AddRecord", "Interactive_calendar", null, {
-      employee,
-      department,
-      date: selectedDate
-    }]
-  ]);
+      filter.innerHTML =
+        `<option value="">All employees</option>` +
+        employees
+          .map(e => `
+            <option value="${escapeHtml(e)}">
+              ${escapeHtml(e)}
+            </option>
+          `)
+          .join("");
+    }
 
-  closeModal();
-}
 
-/* -------------------- DAY VIEW -------------------- */
+    function fillDepartmentFilter() {
+      const filter = document.getElementById("filterDepartment");
 
-async function loadDayEntries(dateStr) {
-  const table = await grist.docApi.fetchTable("Interactive_calendar");
+      filter.innerHTML =
+        `<option value="">All departments</option>` +
+        departments
+          .map(d => `
+            <option value="${escapeHtml(d)}">
+              ${escapeHtml(d)}
+            </option>
+          `)
+          .join("");
+    }
 
-  const rows = table.id.map((_, i) => ({
-    id: table.id[i],
-    employee: table.employee[i],
-    department: table.department[i],
-    date: table.date[i]
-  }));
 
-  const filtered = rows.filter(r =>
-    r.date && r.date.slice(0, 10) === dateStr
-  );
+    /* -------------------- STATUS -------------------- */
 
-  const container = document.getElementById("dayEntries");
+    function normalizeStatus(status) {
+      return STATUS_CONFIG[status] ? status : "Работа";
+    }
 
-  if (!filtered.length) {
-    container.innerHTML = "<b>No shifts for this day</b>";
-    return;
-  }
 
-  container.innerHTML = `
-    <b>Shifts:</b>
-    <ul>
-      ${filtered.map(r => `<li>${r.employee} / ${r.department}</li>`).join("")}
-    </ul>
-  `;
-}
+    function selectStatus(status) {
+      selectedStatus = normalizeStatus(status);
 
-/* -------------------- SYNC -------------------- */
+      document
+        .querySelectorAll(".status-button")
+        .forEach(button => {
+          button.classList.toggle(
+            "selected",
+            button.dataset.status === selectedStatus
+          );
+        });
+    }
 
-grist.onRecords(records => {
-  allRecords = records;
 
-  const events = toEvents(records);
+    function getStatusConfig(status) {
+      return STATUS_CONFIG[normalizeStatus(status)];
+    }
 
-  if (!calendar) {
-    initCalendar(events);
-  } else {
-    calendar.removeAllEvents();
-    let filtered = records;
 
-if (currentFilter) {
-  filtered = filtered.filter(r => r.employee === currentFilter);
-}
+    /* -------------------- EVENTS -------------------- */
 
-if (currentDepartmentFilter) {
-  filtered = filtered.filter(r => r.department === currentDepartmentFilter);
-}
+    function toEvents(records) {
+      return records.map(record => {
+        const status = normalizeStatus(record.status);
+        const config = getStatusConfig(status);
 
-calendar.addEventSource(toEvents(filtered));
-  }
-});
-</script>
+        return {
+          id: String(record.id),
+
+          title:
+            `${config.icon} ${record.employee} / ${record.department}`,
+
+          start: record.date,
+
+          allDay: true,
+
+          backgroundColor: config.color,
+          borderColor: config.color,
+          textColor: config.textColor,
+
+          extendedProps: {
+            employee: record.employee,
+            department: record.department,
+            status: status
+          }
+        };
+      });
+    }
+
+
+    /* -------------------- CALENDAR -------------------- */
+
+    function initCalendar(events) {
+      const element = document.getElementById("calendar");
+
+      calendar = new FullCalendar.Calendar(element, {
+        initialView: "dayGridMonth",
+
+        editable: true,
+        selectable: true,
+
+        events: events,
+
+        eventDrop: async info => {
+          try {
+            await grist.docApi.applyUserActions([
+              [
+                "UpdateRecord",
+                CALENDAR_TABLE,
+                Number(info.event.id),
+                {
+                  date: info.event.startStr
+                }
+              ]
+            ]);
+          } catch (error) {
+            console.error("Unable to move shift:", error);
+            info.revert();
+            alert("Unable to move shift.");
+          }
+        },
+
+        dateClick: info => {
+          selectedDate = info.dateStr;
+          openModal(info.dateStr);
+        },
+
+        eventClick: info => {
+          const event = info.event;
+
+          selectedDate = event.startStr;
+
+          document.getElementById("employeeSelect").value =
+            event.extendedProps.employee;
+
+          document.getElementById("departmentSelect").value =
+            event.extendedProps.department;
+
+          selectStatus(event.extendedProps.status);
+
+          openModal(event.startStr);
+        }
+      });
+
+      calendar.render();
+    }
+
+
+    /* -------------------- FILTER -------------------- */
+
+    function getFilteredRecords(records) {
+      let filtered = records;
+
+      if (currentFilter) {
+        filtered = filtered.filter(
+          record => record.employee === currentFilter
+        );
+      }
+
+      if (currentDepartmentFilter) {
+        filtered = filtered.filter(
+          record => record.department === currentDepartmentFilter
+        );
+      }
+
+      if (currentStatusFilter) {
+        filtered = filtered.filter(
+          record =>
+            normalizeStatus(record.status) === currentStatusFilter
+        );
+      }
+
+      return filtered;
+    }
+
+
+    function renderEvents() {
+      if (!calendar) {
+        return;
+      }
+
+      const filtered = getFilteredRecords(allRecords);
+
+      calendar.removeAllEvents();
+      calendar.addEventSource(toEvents(filtered));
+    }
+
+
+    function applyFilter() {
+      currentFilter =
+        document.getElementById("filterEmployee").value || null;
+
+      currentDepartmentFilter =
+        document.getElementById("filterDepartment").value || null;
+
+      currentStatusFilter =
+        document.getElementById("filterStatus").value || null;
+
+      renderEvents();
+    }
+
+
+    function resetFilter() {
+      document.getElementById("filterEmployee").value = "";
+      document.getElementById("filterDepartment").value = "";
+      document.getElementById("filterStatus").value = "";
+
+      currentFilter = null;
+      currentDepartmentFilter = null;
+      currentStatusFilter = null;
+
+      renderEvents();
+    }
+
+
+    /* -------------------- MODAL -------------------- */
+
+    function openModal(dateStr) {
+      selectedDate = dateStr;
+
+      document.getElementById("selectedDate").innerText =
+        "Date: " + dateStr;
+
+      document.getElementById("modal").style.display = "flex";
+
+      loadDayEntries(dateStr);
+    }
+
+
+    function closeModal() {
+      document.getElementById("modal").style.display = "none";
+
+      selectedStatus = "Работа";
+      selectStatus("Работа");
+    }
+
+
+    document.getElementById("modal").addEventListener(
+      "click",
+      event => {
+        if (event.target.id === "modal") {
+          closeModal();
+        }
+      }
+    );
+
+
+    /* -------------------- SAVE -------------------- */
+
+    async function saveShift() {
+      const employee =
+        document.getElementById("employeeSelect").value;
+
+      const department =
+        document.getElementById("departmentSelect").value;
+
+      if (!employee) {
+        alert("Select an employee.");
+        return;
+      }
+
+      if (!department) {
+        alert("Select a department.");
+        return;
+      }
+
+      if (!selectedDate) {
+        alert("Date is not selected.");
+        return;
+      }
+
+      try {
+        await grist.docApi.applyUserActions([
+          [
+            "AddRecord",
+            CALENDAR_TABLE,
+            null,
+            {
+              employee: employee,
+              department: department,
+              date: selectedDate,
+              status: selectedStatus
+            }
+          ]
+        ]);
+
+        closeModal();
+
+      } catch (error) {
+        console.error("Unable to save shift:", error);
+
+        alert(
+          "Unable to save shift. " +
+          "Check that the Interactive_calendar table " +
+          "contains the status column."
+        );
+      }
+    }
+
+
+    /* -------------------- DAY VIEW -------------------- */
+
+    async function loadDayEntries(dateStr) {
+      const container = document.getElementById("dayEntries");
+
+      container.innerHTML = "Loading...";
+
+      try {
+        const table =
+          await grist.docApi.fetchTable(CALENDAR_TABLE);
+
+        const rows = table.id.map((_, index) => ({
+          id: table.id[index],
+          employee: table.employee[index],
+          department: table.department[index],
+          date: table.date[index],
+          status: table.status
+            ? table.status[index]
+            : "Работа"
+        }));
+
+        const filtered = rows.filter(record =>
+          record.date &&
+          String(record.date).slice(0, 10) === dateStr
+        );
+
+        if (!filtered.length) {
+          container.innerHTML =
+            "<b>No shifts for this day</b>";
+
+          return;
+        }
+
+        container.innerHTML = `
+          <b>Shifts:</b>
+
+          ${filtered.map(record => {
+            const status = normalizeStatus(record.status);
+            const config = getStatusConfig(status);
+
+            return `
+              <div class="day-entry">
+                <span
+                  class="status-dot"
+                  style="background:${config.color}"
+                ></span>
+
+                <span>
+                  <b>${escapeHtml(record.employee)}</b>
+                  /
+                  ${escapeHtml(record.department)}
+                  —
+                  ${config.icon}
+                  ${escapeHtml(status)}
+                </span>
+              </div>
+            `;
+          }).join("")}
+        `;
+
+      } catch (error) {
+        console.error("Unable to load shifts:", error);
+
+        container.innerHTML =
+          "<b>Unable to load shifts</b>";
+      }
+    }
+
+
+    /* -------------------- SYNC -------------------- */
+
+    grist.onRecords(records => {
+      allRecords = records;
+
+      const events = toEvents(records);
+
+      if (!calendar) {
+        initCalendar(events);
+      } else {
+        renderEvents();
+      }
+
+      if (
+        selectedDate &&
+        document.getElementById("modal").style.display === "flex"
+      ) {
+        loadDayEntries(selectedDate);
+      }
+    });
+
+  </script>
 
 </body>
 </html>
